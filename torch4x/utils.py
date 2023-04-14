@@ -199,54 +199,6 @@ def get_free_port() -> int:
     return port
 
 
-class GradientAccumulator:
-    def __init__(self, steps=1, enabled=True):
-        self.steps = steps
-        self.enable = enabled
-        self._counter = 0
-
-    @property
-    def counter(self):
-        return self._counter
-
-    def inc_counter(self):
-        self._counter += 1
-        self._counter %= self.steps
-
-    @property
-    def is_start_cycle(self):
-        return self._counter == 0
-
-    @property
-    def is_end_cycle(self):
-        return self._counter == self.steps - 1
-
-    def backward_step(self, model: nn.Module, loss: torch.Tensor,
-                      optimizer: optim.Optimizer, scaler: amp.GradScaler):
-        if not self.enable:
-            return
-        if optimizer is None:
-            return
-
-        loss = loss / self.steps
-
-        if self.is_start_cycle:
-            # if pytorch version >= 1.7, set set_to_none=True for better performance
-            optimizer.zero_grad(set_to_none=True)
-
-        if isinstance(model, nn.parallel.DistributedDataParallel) and not self.is_end_cycle:
-            with model.no_sync():
-                scaler.scale(loss).backward()
-        else:
-            scaler.scale(loss).backward()
-
-        if self.is_end_cycle:
-            scaler.step(optimizer)
-            scaler.update()
-
-        self.inc_counter()
-
-
 def dummy_func(*args, **kargs):
     pass
 
@@ -301,37 +253,6 @@ def only_rank_0(something):
         return only_master_cls(something)
     else:
         return only_master_obj(something)
-
-
-class ModelEma(nn.Module):
-    """ 
-    Copy from https://github.com/rwightman/pytorch-image-models/blob/master/timm/utils/model_ema.py#L82
-    License under Apache License 2.0, full license text can be found at 
-    https://github.com/rwightman/pytorch-image-models/blob/master/LICENSE
-    """
-
-    def __init__(self, model, decay=0.9999, device=None):
-        super(ModelEma, self).__init__()
-        # make a copy of the model for accumulating moving average of weights
-        self.module = copy.deepcopy(model)
-        self.module.eval()
-        self.decay = decay
-        self.device = device  # perform ema on different device from model if set
-        if self.device is not None:
-            self.module.to(device=device)
-
-    def _update(self, model, update_fn):
-        with torch.no_grad():
-            for ema_v, model_v in zip(self.module.state_dict().values(), model.state_dict().values()):
-                if self.device is not None:
-                    model_v = model_v.to(device=self.device)
-                ema_v.copy_(update_fn(ema_v, model_v))
-
-    def update(self, model):
-        self._update(model, update_fn=lambda e, m: self.decay * e + (1. - self.decay) * m)
-
-    def set(self, model):
-        self._update(model, update_fn=lambda e, m: m)
 
 
 def unwarp_module(model):
@@ -427,52 +348,6 @@ class StateCheckPoint:
             _logger.info(f"Load state checkpoint from {checkpoint_path} at epoch={metric_store.total_epoch}")
 
 
-class ThroughputTester():
-    def __init__(self):
-        self.reset()
-
-    def reset(self):
-        self.batch_size = 0
-        self.start = time.perf_counter()
-
-    def update(self, tensor):
-        batch_size, *_ = tensor.shape
-        self.batch_size += batch_size
-        self.end = time.perf_counter()
-
-    def compute(self):
-        if self.batch_size == 0:
-            return 0
-        else:
-            return self.batch_size/(self.end-self.start)
-
-
-class time_enumerate:
-    def __init__(self, seq, start=0, infinite=False):
-        self.seq = seq
-        self.start = start
-        self.counter = self.start-1
-        self.infinite = infinite
-
-    def __iter__(self):
-        self.seq_iter = iter(self.seq)
-        return self
-
-    def __next__(self):
-        while True:
-            try:
-                start_time = time.perf_counter()
-                item = next(self.seq_iter)
-                end_time = time.perf_counter()
-                self.counter += 1
-                return end_time-start_time, self.counter, item
-            except StopIteration:
-                if self.infinite:
-                    self.__iter__()
-                else:
-                    raise StopIteration
-
-
 CURRENT_DEVICE = None
 
 
@@ -514,6 +389,7 @@ def apply_modifications(modifications: List[str], conf: ConfigTree):
                 raise ValueError(f"Key '{key}'' is not in the config tree!")
             conf.put(key, eval_value)
     return conf
+
 
 def load_modules(package, file):
     import os

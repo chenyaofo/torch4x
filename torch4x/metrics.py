@@ -1,5 +1,6 @@
 from datetime import datetime
 import typing
+import time
 
 import torch
 import torch.distributed as dist
@@ -264,3 +265,48 @@ class EstimatedTimeArrival(object):
         return f"remaining_time={self.remaining_time}, " + \
             f"arrival_time={self.arrival_time}, " + \
             f"cost_time={self.cost_time}"
+
+
+class time_enumerate:
+    def __init__(self, seq, start=0, infinite=False):
+        self.seq = seq
+        self.start = start
+        self.counter = self.start-1
+        self.infinite = infinite
+
+    def __iter__(self):
+        self.seq_iter = iter(self.seq)
+        return self
+
+    def __next__(self):
+        while True:
+            try:
+                start_time = time.perf_counter()
+                item = next(self.seq_iter)
+                end_time = time.perf_counter()
+                self.counter += 1
+                return end_time-start_time, self.counter, item
+            except StopIteration:
+                if self.infinite:
+                    self.__iter__()
+                else:
+                    raise StopIteration
+
+class ThroughputTester():
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.batch_size = 0
+        self.start = time.perf_counter()
+
+    def update(self, tensor):
+        batch_size, *_ = tensor.shape
+        self.batch_size += batch_size
+        self.end = time.perf_counter()
+
+    def compute(self):
+        if self.batch_size == 0:
+            return 0
+        else:
+            return self.batch_size/(self.end-self.start)
