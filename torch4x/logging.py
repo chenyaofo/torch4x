@@ -5,7 +5,7 @@ import logging
 import glob
 import zipfile
 
-from .distributed import is_rank_0
+from .distributed import is_rank_0, rank
 
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ FORMAT = "[%(asctime)s] [%(levelname)s] [%(filename)s:%(lineno)d:%(funcName)s] %
 
 
 def init_logger(
-    rank: int,
+    rank: int = rank(),
     filenmae: str = None
 ) -> None:
     if rank != 0:
