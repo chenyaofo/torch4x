@@ -4,5 +4,5 @@ A PyTorch utilities for x applications/tasks.
 # Get Started
 
 ```
-pip install git+https://gitee.com/chenyaofo/torch4x
+pip install -U --force-reinstall git+https://gitee.com/chenyaofo/torch4x@nightly
 ```
