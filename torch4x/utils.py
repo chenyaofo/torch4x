@@ -405,3 +405,15 @@ def load_modules(package, file):
             module_name = file[:-3]  # Remove the .py extension
             module_path = f"{package}.{module_name}"  # Get the full path to the module
             importlib.import_module(module_path)
+
+
+def formated_cuda_info():
+    free_memroy, total_memory = torch.cuda.mem_get_info()
+    return ", ".join([
+        f"cuda_allocated_memory={torch.cuda.memory_allocated()/(1024**3):.1f}GB",
+        f"cuda_max_allocated_memory={torch.cuda.max_memory_allocated()/(1024**3):.1f}GB",
+        f"cuda_reserved_memory={torch.cuda.memory_reserved()/(1024**3):.1f}GB",
+        f"cuda_max_reserved_memory={torch.cuda.max_memory_reserved()/(1024**3):.1f}GB",
+        f"free_memory={free_memroy/(1024**3):.1f}GB",
+        f"total_memory={total_memory/(1024**3):.1f}GB",
+    ])

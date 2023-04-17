@@ -40,7 +40,8 @@ from .utils import (
     get_active_device,
     save_uuid,
     apply_modifications,
-    load_modules
+    load_modules,
+    formated_cuda_info
 )
 
-__version__ = "1.0.0a20230414"
+__version__ = "1.0.0a20230417"
