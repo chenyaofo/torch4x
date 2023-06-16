@@ -41,7 +41,8 @@ from .utils import (
     save_uuid,
     apply_modifications,
     load_modules,
-    formated_cuda_info
+    formated_cuda_info,
+    set_sampler_epoch
 )
 
-__version__ = "1.0.0a20230417"
+__version__ = "1.0.0a20230616"

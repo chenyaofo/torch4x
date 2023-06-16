@@ -20,9 +20,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.cuda.amp as amp
 import torch.backends.cudnn
+import torch.utils.data as data
 from pyhocon import ConfigFactory, ConfigTree
 
-from .distributed import torchsave, is_rank_0, local_rank
+from .distributed import torchsave, is_rank_0, local_rank, is_dist_avail_and_init
 
 _logger = logging.getLogger(__name__)
 
@@ -417,3 +418,11 @@ def formated_cuda_info():
         f"free_memory={free_memroy/(1024**3):.1f}GB",
         f"total_memory={total_memory/(1024**3):.1f}GB",
     ])
+
+def set_sampler_epoch(
+    epoch: int,
+    dataloader: data.DataLoader,
+):
+    if is_dist_avail_and_init():
+        if hasattr(dataloader, "sampler"):
+            dataloader.sampler.set_epoch(epoch)
